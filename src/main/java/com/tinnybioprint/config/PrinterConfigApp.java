@@ -84,7 +84,7 @@ public class PrinterConfigApp {
 
     public PrinterConfigApp() {
         frame = new JFrame("TinyBioPrint Configuration Manager");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(600, 300);
 
         LOGGER.debug("Testing file logging...");
@@ -114,7 +114,9 @@ public class PrinterConfigApp {
         topPanel.add(facilityIdLabel, BorderLayout.CENTER);
         panel.add(topPanel, BorderLayout.CENTER);
 
-        //setUpThreads();
+        setUpThreads();
+        pollingThreadPerm.start();
+        pollingThreadTemp.start();
         // Add printers with checkboxes to the panel
         listPrinters();
 
@@ -417,7 +419,6 @@ public class PrinterConfigApp {
             while (true) {
 
                 try {
-                    PrintService printService1 = PrintServiceLookup.lookupDefaultPrintService();
                     //String permUrl = "http://idmsdev.kaa.go.ke/main/printpermits/6/perm/test.png";
                     //printFrontAndBackImages(printService1,permUrl,permUrl);
                     //printPermanentPass(printService1,"Potrait",permUrl,permUrl);
@@ -446,10 +447,18 @@ public class PrinterConfigApp {
                             String status = jsonObject.getString("status");
                             LOGGER.debug("Perm Worker Response Status:" + status);
                             JSONArray urlsArray = jsonObject.getJSONArray("urls");
-
-                            ArrayList<String> recIDS = new ArrayList<>();
                             
                             LOGGER.debug("urlsArray: " + urlsArray);
+                            ArrayList<String> recIDS = new ArrayList<>();
+
+                            // Extract and store the IDs in recIDS
+                            for (int i = 0; i < urlsArray.length(); i++) {
+                                JSONObject urlObject = urlsArray.getJSONObject(i);
+                                String recId = urlObject.getString("id");
+                                recIDS.add(recId);
+                            }
+                            LOGGER.debug("Sending received acknowledgement for permanent passess...");
+                            sendAcknowledgement(BaseURL + AckReceivedURL, recIDS);
                             ArrayList<String> printIDS = new ArrayList<>();
 
                             // Process and print each URL
@@ -473,7 +482,8 @@ public class PrinterConfigApp {
                                 }
                             }
                             LOGGER.debug("printIds: " + printIDS);
-                            sendAcknowledgement(BaseURL + AckPrintedURL, printIDS.toArray());
+                            LOGGER.debug("Sending printed acknowledgement for permanent passess...");
+                            sendAcknowledgement(BaseURL + AckPrintedURL, printIDS);
                         } catch (Exception e) {
                             e.printStackTrace();
                             LOGGER.debug("PERM_WORKER_JSON_ERROR", e);
@@ -533,8 +543,8 @@ public class PrinterConfigApp {
                                 String recId = urlObject.getString("id");
                                 recIDS.add(recId);
                             }
-
-                            sendAcknowledgement(BaseURL + AckReceivedURL, recIDS.toArray());
+                            LOGGER.debug("Sending received acknowledgement for temporary passess...");
+                            sendAcknowledgement(BaseURL + AckReceivedURL, recIDS);
                             ArrayList<String> printIDS = new ArrayList<>();
 
                             // Process and print each URL
@@ -552,7 +562,8 @@ public class PrinterConfigApp {
                                     //LOGGER.debug("");
                                 }
                             }
-                            sendAcknowledgement(BaseURL + AckPrintedURL, printIDS.toArray());
+                            LOGGER.debug("Sending printed acknowledgement for temporary passess...");
+                            sendAcknowledgement(BaseURL + AckPrintedURL, printIDS);
                         } catch (Exception e) {
                             e.printStackTrace();
                             LOGGER.debug("TEMP_WORKER_JSON_ERROR", e);
@@ -650,12 +661,13 @@ public class PrinterConfigApp {
         }
 
         // Add a Start/Stop Service button at the bottom center
-        JButton serviceButton = new JButton(serviceRunning ? "Stop Service" : "Start Tiny Service");
+        //JButton serviceButton = new JButton(serviceRunning ? "Stop Service" : "Start Tiny Service");
+        JButton serviceButton = new JButton("Submit");
         serviceButton.setBackground(new Color(144, 238, 144)); // Light green color
         serviceButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (serviceRunning) {
+                /*if (serviceRunning) {
                     pollingThreadPerm.stop();
                     pollingThreadTemp.stop();
                     serviceRunning = false;
@@ -672,7 +684,8 @@ public class PrinterConfigApp {
                     serviceButton.setText("Stop Tiny Service");
                     serviceButton.setBackground(Color.RED);
                     JOptionPane.showMessageDialog(frame, "Tiny Bioprint Service has started!", "Message", JOptionPane.INFORMATION_MESSAGE);
-                }
+                }*/
+                frame.dispose();
             }
         });
 
@@ -808,17 +821,18 @@ public class PrinterConfigApp {
         }
     }
 
-    public void sendAcknowledgement(String ackURL, Object[] ackData) {
+    public void sendAcknowledgement(String ackURL, ArrayList<String> ackData) {
         try {
-            var postData = new HashMap<String, Object[]>() {
+            var postData = new HashMap<String, ArrayList<String>>() {
                 {
                     put("ids", ackData);
                 }
             };
+            LOGGER.debug("acknowledgement post data: " + postData);
             var objectMapper = new ObjectMapper();
             String requestBody = objectMapper
                     .writeValueAsString(postData);
-            LOGGER.debug("Send acknowlegdgement request body: ", requestBody);
+            LOGGER.debug("Send acknowlegdgement request body: " + requestBody);
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(ackURL))
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -849,6 +863,5 @@ public class PrinterConfigApp {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new PrinterConfigApp());
-        
     }
 }
