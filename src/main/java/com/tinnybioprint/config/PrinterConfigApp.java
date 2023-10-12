@@ -250,7 +250,7 @@ public class PrinterConfigApp {
             double pageHeight = pf.getHeight();
             LOGGER.debug("Printer Page width=" + pageWidth + " height=" + pageHeight);
             final Paper paper = new Paper();
-            paper.setSize(pageWidth * 72.0f, pageHeight * 72.0f);
+//            paper.setSize(pageWidth * 72.0f, pageHeight * 72.0f);
             LOGGER.debug("paper width: {}, height: {}", paper.getWidth(), paper.getHeight());
             paper.setImageableArea(0.0, 0.0, paper.getWidth(), paper.getHeight());
             pf.setPaper(paper);
@@ -331,6 +331,85 @@ public class PrinterConfigApp {
         }
         return result;
     }
+    
+    public boolean printPermanentPass2() {
+        boolean result = false;
+        String frontImageUrl = "http://idmsdev.kaa.go.ke/main/printpermits/2/perm/073701100120231011_1002713_36677959_front.png";
+        String backImageUrl = "http://idmsdev.kaa.go.ke/main/printpermits/2/perm/073701100120231011_1002713_36677959_back.png";
+        String printOrientation = "LANDSCAPE";
+        try {
+            LOGGER.debug("Fetching ImagesForPermPass: Front->"+frontImageUrl+"  Back->"+backImageUrl);
+            // Load front and back images from URLs
+            BufferedImage frontImage = ImageIO.read(new URL(frontImageUrl));
+            BufferedImage backImage = ImageIO.read(new URL(backImageUrl));
+            LOGGER.debug("Images Received Success");
+            BufferedImage[] images = {frontImage, null};
+//            if (printOrientation.equals("LANDSCAPE")) {
+//                BufferedImage rotatedImage = rotate(backImage, 180);
+//                images[1] = rotatedImage;
+//            } else {
+//                images[1] = backImage;
+//            }
+            images[1] = backImage;
+            LOGGER.debug("Initializing PrinterService");
+            final PrinterJob printJob = PrinterJob.getPrinterJob();
+            PrintService printerService = PrintServiceLookup.lookupDefaultPrintService();
+            printJob.setPrintService(printerService);
+            LOGGER.debug("Initialization Done");
+            final PageFormat pf = printJob.defaultPage();
+            double pageWidth = pf.getWidth();
+            double pageHeight = pf.getHeight();
+            LOGGER.debug("Printer Page width=" + pageWidth + " height=" + pageHeight);
+            final Paper paper = new Paper();
+//            paper.setSize(pageWidth * 72.0f, pageHeight * 72.0f);
+            LOGGER.debug("paper width: {}, height: {}", paper.getWidth(), paper.getHeight());
+            paper.setImageableArea(0.0, 0.0, paper.getWidth(), paper.getHeight());
+            pf.setPaper(paper);
+            LOGGER.debug("print Orientation: " + printOrientation);
+            if (printOrientation.equals("LANDSCAPE")) {
+                pf.setOrientation(PageFormat.LANDSCAPE);
+            } else {
+                pf.setOrientation(PageFormat.PORTRAIT);
+            }
+            printJob.setPrintable(new Printable() {
+                public int print(Graphics graphics, PageFormat pageFormat,
+                        int pageIndex) throws PrinterException {
+                    LOGGER.debug("current pageIndex: " + pageIndex);
+                    if (pageIndex < images.length) {
+                        Graphics2D g2 = (Graphics2D) graphics;
+                        /*final double xScale, yScale, xTranslate, yTranslate;
+                            xScale = 1;
+                            yScale = 1;
+                            xTranslate = 0;
+                            yTranslate = 0;
+                        final double widthScale = (pageFormat.getWidth() / images[pageIndex]
+                                .getWidth()) * xScale;
+                        final double heightScale = (pageFormat.getHeight() / images[pageIndex]
+                                .getHeight()) * yScale;
+                        LOGGER.debug("Setting scale to " + widthScale + "x" + heightScale);
+                        final AffineTransform at = AffineTransform.getScaleInstance(
+                                widthScale, heightScale);
+                        LOGGER.debug("Setting translate to " + xTranslate
+                                + "x" + yTranslate);
+                        at.translate(xTranslate, yTranslate);
+                        g2.drawRenderedImage(images[pageIndex], at);*/
+                        g2.drawImage(images[pageIndex], 0, 0, 
+                                images[pageIndex].getWidth(), 
+                                images[pageIndex].getHeight(), null);
+                        return PAGE_EXISTS;
+                    } else {
+                        return NO_SUCH_PAGE;
+                    }
+                }
+            }, pf);
+            printJob.print();
+            result=true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            LOGGER.debug("PrintPermanentPassFailed", e);
+        }
+        return result;
+    }
 
     private void setUpThreads() {
         // Start a separate thread for polling a URL for JSON data
@@ -369,61 +448,28 @@ public class PrinterConfigApp {
                             JSONArray urlsArray = jsonObject.getJSONArray("urls");
 
                             ArrayList<String> recIDS = new ArrayList<>();
-                            ArrayList<String> frontUrls = new ArrayList();
-                            ArrayList<String> backUrls = new ArrayList();
-                            ArrayList<String> orientation = new ArrayList();
                             
                             LOGGER.debug("urlsArray: " + urlsArray);
-                            LOGGER.debug("json object in urlsArray: " + urlsArray.getJSONObject(0));
-                            // Extract and store the IDs in recIDS
-                            for (int i = 0; i < urlsArray.length(); i++) {
-                                JSONObject urlObject = urlsArray.getJSONObject(i);
-                                LOGGER.debug("urlObject: " + urlObject);
-                                String recId = urlObject.getString("id");
-                                recIDS.add(recId);
-                                String theUrl = urlObject.getString("url");
-                                String side = urlObject.getString("side");
-                                LOGGER.debug("side: " + side);
-                                LOGGER.debug("theUrl: " + theUrl);
-                                if(side.equals("FRONT")) frontUrls.add(theUrl);
-                                else backUrls.add(theUrl);
-                                orientation.add(urlObject.getString("orientation"));
-                            }
-
-//                            sendAcknowledgement(BaseURL + AckReceivedURL, recIDS.toArray());
                             ArrayList<String> printIDS = new ArrayList<>();
 
                             // Process and print each URL
-                            /*for (int i = 0; i < urlsArray.length(); i++) {
+                            for (int i = 0; i < urlsArray.length(); i++) {
                                 JSONObject urlObject = urlsArray.getJSONObject(i);
-                                String url__ = urlObject.getString("url");
+                                String frontUrl = urlObject.getString("front_img");
+                                String backUrl = urlObject.getString("back_img");
                                 String prnId = urlObject.getString("id");
                                 String orientation = urlObject.getString("orientation");
-                                String side = urlObject.getString("side");
-                                System.out.println("URL " + (i + 1) + ": " + url__);
+                                LOGGER.debug("frontUrl: " + frontUrl);
+                                LOGGER.debug("backUrl: " + backUrl);
                                 //get printer
                                 PrintService printService = PrintServiceLookup.lookupDefaultPrintService();
-                                //printImageFromURL(url__, printerSelection.get("Temp"));
-                                if (printPermanentPass(printService, orientation,url__, "" )) {
-//                                    if (printImageFromURL(url__, printerSelection.get("Perm"))) {
+                                if (printPermanentPass(printService, 
+                                        orientation,
+                                        frontUrl, 
+                                        backUrl)) {
                                     printIDS.add(prnId);
                                 } else {
                                     //LOGGER.debug("");
-                                }
-                            }*/
-                            LOGGER.debug("recIDS: " + recIDS);
-                            LOGGER.debug("frontUrls: " + frontUrls);
-                            PrintService printService = PrintServiceLookup.lookupDefaultPrintService();
-                            for(int i = 0; i < frontUrls.size(); i++) {
-                                boolean bool = printPermanentPass(printService, 
-                                        orientation.get(i), 
-                                        frontUrls.get(i), 
-                                        backUrls.get(i));
-                                LOGGER.debug("bool: " + bool);
-                                if(bool) {
-                                    printIDS.add(recIDS.get(i));
-                                } else {
-                                    LOGGER.debug("id not added to ack ids: " + recIDS.get(i));
                                 }
                             }
                             LOGGER.debug("printIds: " + printIDS);
@@ -494,7 +540,7 @@ public class PrinterConfigApp {
                             // Process and print each URL
                             for (int i = 0; i < urlsArray.length(); i++) {
                                 JSONObject urlObject = urlsArray.getJSONObject(i);
-                                String url__ = urlObject.getString("url");
+                                String url__ = urlObject.getString("front_img");
                                 String prnId = urlObject.getString("id");
                                 System.out.println("URL " + (i + 1) + ": " + url__);
                                 //PrintService printService = PrintServiceLookup.lookupDefaultPrintService();
@@ -611,7 +657,7 @@ public class PrinterConfigApp {
             public void actionPerformed(ActionEvent e) {
                 if (serviceRunning) {
                     pollingThreadPerm.stop();
-                    //pollingThreadTemp.stop();
+                    pollingThreadTemp.stop();
                     serviceRunning = false;
                     serviceButton.setText("Start Tiny Service");
                     serviceButton.setBackground(new Color(144, 238, 144));
@@ -620,7 +666,7 @@ public class PrinterConfigApp {
                 } else {
                     setUpThreads();
                     pollingThreadPerm.start();
-                    //pollingThreadTemp.start();
+                    pollingThreadTemp.start();
 
                     serviceRunning = true;
                     serviceButton.setText("Stop Tiny Service");
@@ -803,5 +849,6 @@ public class PrinterConfigApp {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new PrinterConfigApp());
+        
     }
 }
