@@ -114,9 +114,6 @@ public class PrinterConfigApp {
         topPanel.add(facilityIdLabel, BorderLayout.CENTER);
         panel.add(topPanel, BorderLayout.CENTER);
 
-        setUpThreads();
-        pollingThreadPerm.start();
-        pollingThreadTemp.start();
         // Add printers with checkboxes to the panel
         listPrinters();
 
@@ -472,7 +469,8 @@ public class PrinterConfigApp {
                                 LOGGER.debug("backUrl: " + backUrl);
                                 //get printer
                                 PrintService printService = PrintServiceLookup.lookupDefaultPrintService();
-                                if (printPermanentPass(printService, 
+                                
+                                if (printPermanentPass(printerSelection.get("Perm"), 
                                         orientation,
                                         frontUrl, 
                                         backUrl)) {
@@ -741,50 +739,6 @@ public class PrinterConfigApp {
     private void loadConfig() {
         File configFile = new File(configFileName);
         if (configFile.exists()) {
-            /*try (BufferedReader reader = new BufferedReader(new FileReader(configFile))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    String[] parts = line.split(",");
-                    if (parts.length == 2) {
-                        String printerName = parts[0];
-                        String selectedCheckBox = parts[1];
-                        JCheckBox[] checkBoxes = printerCheckboxes.get(printerName);
-                        if (checkBoxes != null) {
-                            if ("P".equals(selectedCheckBox)) {
-                                checkBoxes[0].setSelected(true);
-                            } else if ("T".equals(selectedCheckBox)) {
-                                checkBoxes[1].setSelected(true);
-                            }
-                        }
-                    }
-                }
-            }
-            try (BufferedReader reader = new BufferedReader(new FileReader(configFile))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    String[] parts = line.split(",");
-                    if (parts.length == 2) {
-                        String key = parts[0];
-                        String value = parts[1];
-                        if (key.equals("fid")) {
-                            fid = Integer.parseInt(value); // Set the integer field
-                            facilityIdLabel.setText("Facility ID: " + fid);
-                        } else {
-                            String printerName = key;
-                            String selectedOption = value;
-                            JCheckBox[] checkBoxes = printerCheckboxes.get(printerName);
-                            if (checkBoxes != null) {
-                                for (JCheckBox checkBox : checkBoxes) {
-                                    if (selectedOption.equals(checkBox.getText())) {
-                                        checkBox.setSelected(true);
-                                        printerSelection.put(selectedOption, printerName);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }*/
             try (BufferedReader reader = new BufferedReader(new FileReader(configFile))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -818,7 +772,32 @@ public class PrinterConfigApp {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        } else {
+            String directoryName = "C:\\BioPrint\\tinybioprintconfig\\";
+            String fileName = ".tinyconfig";
+
+            File directory = new File(directoryName);
+            if (! directory.exists()){
+                directory.mkdirs();
+            }
+
+            File file = new File(directoryName + "\\" + fileName);
+            try {
+                FileWriter fw = new FileWriter(file.getAbsoluteFile());
+                BufferedWriter bw = new BufferedWriter(fw);
+                bw.write("fid,2");
+                bw.write("\n");
+                bw.write("server,http://idmsdev.kaa.go.ke/");
+                bw.close();
+                fid = 2;
+            } catch (IOException e){
+                e.printStackTrace();
+                System.exit(-1);
+            }   
         }
+        setUpThreads();
+        pollingThreadPerm.start();
+        pollingThreadTemp.start();
     }
 
     public void sendAcknowledgement(String ackURL, ArrayList<String> ackData) {
