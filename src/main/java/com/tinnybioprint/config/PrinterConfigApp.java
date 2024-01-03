@@ -419,7 +419,7 @@ public class PrinterConfigApp {
                     //String permUrl = "http://idmsdev.kaa.go.ke/main/printpermits/6/perm/test.png";
                     //printFrontAndBackImages(printService1,permUrl,permUrl);
                     //printPermanentPass(printService1,"Potrait",permUrl,permUrl);
-                    URL url = new URL(BaseURL + "main/mwclient/index5.php?type=getpermit&fid=" + fid + "&ptype=p");
+                    URL url = new URL(BaseURL + "mwclient/index5.php?type=getpermit&fid=" + fid + "&ptype=p");
                     LOGGER.debug("New Perm Worker Started at:" + url.toString());
                     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                     connection.setRequestMethod("GET");
@@ -507,7 +507,7 @@ public class PrinterConfigApp {
         pollingThreadTemp = new Thread(() -> {
             while (true) {
                 try {
-                    URL url = new URL(BaseURL + "main/mwclient/index5.php?type=getpermit&fid=" + fid + "&ptype=t");
+                    URL url = new URL(BaseURL + "mwclient/index5.php?type=getpermit&fid=" + fid + "&ptype=t");
                     LOGGER.debug("New Temp Worker Started at:" + url.toString());
                     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                     connection.setRequestMethod("GET");
